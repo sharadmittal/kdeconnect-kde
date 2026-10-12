@@ -103,6 +103,7 @@ public Q_SLOTS:
     Q_SCRIPTABLE void dismiss();
     Q_SCRIPTABLE void reply();
     Q_SCRIPTABLE void sendReply(const QString &message);
+    Q_SCRIPTABLE void copyCode();
 
 Q_SIGNALS:
     void dismissRequested(const QString &m_internalId);
@@ -118,6 +119,8 @@ private:
     QString m_title;
     QString m_text;
     QString m_groupName;
+    QString m_code;
+    QString m_copiedCode;
     QString m_iconPath;
     QString m_requestReplyId;
     bool m_dismissable;

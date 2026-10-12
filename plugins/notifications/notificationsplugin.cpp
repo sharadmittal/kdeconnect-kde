@@ -10,17 +10,16 @@
 #include "notification.h"
 #include "plugin_notifications_debug.h"
 #include "sendreplydialog.h"
+#include "verificationcode.h"
 #include <dbushelper.h>
 
 #include <KPluginFactory>
-#include <KSystemClipboard>
 
 #if WITH_X11
 #include <KStartupInfo>
 #include <private/qtx11extras_p.h>
 #endif
 
-#include <QMimeData>
 
 K_PLUGIN_CLASS_WITH_JSON(NotificationsPlugin, "kdeconnect_notifications.json")
 
@@ -203,10 +202,7 @@ void NotificationsPlugin::copyAuthCodeIfPresent(const QString &action)
         return;
     }
 
-    QString text = match.captured(1);
-    auto mimeData = new QMimeData;
-    mimeData->setText(text);
-    KSystemClipboard::instance()->setMimeData(mimeData, QClipboard::Clipboard);
+    VerificationCode::copyToClipboard(match.captured(1));
 }
 
 QString NotificationsPlugin::newId()
