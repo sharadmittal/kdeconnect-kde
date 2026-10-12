@@ -13,6 +13,7 @@
 #include <QString>
 
 #include <KLocalizedString>
+#include <KSharedConfig>
 
 #include "dbushelpers.h"
 #include "dbusinterfaces/dbusinterfaces.h"
@@ -38,6 +39,8 @@ ConversationListModel::ConversationListModel(QObject *parent)
     roles.insert(ConversationIdRole, "conversationId");
     roles.insert(MultitargetRole, "isMultitarget");
     roles.insert(AttachmentPreview, "attachmentPreview");
+    roles.insert(AvatarRole, "avatar");
+    roles.insert(UnreadRole, "isUnread");
     setItemRoleNames(roles);
 
     ConversationMessage::registerDbusType();
@@ -197,7 +200,7 @@ void ConversationListModel::createRowFromMessage(const ConversationMessage &mess
         const QIcon displayIcon = SmsHelper::getIconForAddresses(rawAddresses);
 
         item->setText(displayNames);
-        item->setData(displayIcon, Qt::DecorationRole);
+        setAvatar(item, QStringLiteral("avatar-thread-%1").arg(message.threadID()), displayIcon);
         item->setData(message.threadID(), ConversationIdRole);
         item->setData(rawAddresses[0].address(), SenderRole);
     }
@@ -257,6 +260,8 @@ void ConversationListModel::createRowFromMessage(const ConversationMessage &mess
         item->setData(displayBody, Qt::ToolTipRole);
         item->setData(message.date(), DateRole);
         item->setData(message.isMultitarget(), MultitargetRole);
+        const qint64 seenDate = seenConversations().readEntry(QString::number(message.threadID()), qint64(0));
+        item->setData(!message.isOutgoing() && !message.read() && message.date() > seenDate, UnreadRole);
         if (message.containsAttachment()) {
             item->setData(message.attachments().last().uniqueIdentifier(), AttachmentPreview);
         }
@@ -278,7 +283,13 @@ void ConversationListModel::displayContacts()
             if (!getConversationForAddress(rawPhoneNumber.toString())) {
                 QStandardItem *item = new QStandardItem();
                 item->setText(person->name());
-                item->setIcon(person->photo());
+                const QVariant picture = person->contactCustomProperty(QStringLiteral("picture"));
+                if (picture.canConvert<QImage>()) {
+                    const QPixmap pixmap = QPixmap::fromImage(picture.value<QImage>());
+                    if (!pixmap.isNull()) {
+                        setAvatar(item, QStringLiteral("avatar-contact-%1").arg(rawPhoneNumber.toString()), QIcon(pixmap));
+                    }
+                }
 
                 QList<ConversationAddress> addresses;
                 addresses.append(ConversationAddress(rawPhoneNumber.toString()));
@@ -290,6 +301,7 @@ void ConversationListModel::displayContacts()
                 item->setData(qint64(INVALID_THREAD_ID), ConversationIdRole);
                 item->setData(qint64(INVALID_DATE), DateRole);
                 item->setData(rawPhoneNumber.toString(), SenderRole);
+                item->setData(false, UnreadRole);
                 appendRow(item);
             }
         }
@@ -311,7 +323,34 @@ void ConversationListModel::createConversationForAddress(const QString &address)
     item->setData(qint64(INVALID_THREAD_ID), ConversationIdRole);
     item->setData(qint64(INVALID_DATE), DateRole);
     item->setData(address, SenderRole);
+    item->setData(false, UnreadRole);
     appendRow(item);
+}
+
+void ConversationListModel::markAsRead(qint64 conversationId)
+{
+    QStandardItem *item = conversationForThreadId(conversationId);
+    if (!item || !item->data(UnreadRole).toBool()) {
+        return;
+    }
+    KConfigGroup seen = seenConversations();
+    seen.writeEntry(QString::number(conversationId), item->data(DateRole).toLongLong());
+    seen.sync();
+    item->setData(false, UnreadRole);
+}
+
+KConfigGroup ConversationListModel::seenConversations() const
+{
+    return KSharedConfig::openStateConfig()->group(QStringLiteral("SeenConversations")).group(m_deviceId);
+}
+
+void ConversationListModel::setAvatar(QStandardItem *item, const QString &id, const QIcon &icon)
+{
+    if (icon.isNull() || !m_thumbnailsProvider) {
+        return;
+    }
+    (*m_thumbnailsProvider)->addIcon(id, icon);
+    item->setData(id, AvatarRole);
 }
 
 #include "moc_conversationlistmodel.cpp"

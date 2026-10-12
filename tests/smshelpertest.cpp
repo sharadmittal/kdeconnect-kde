@@ -36,6 +36,8 @@ private Q_SLOTS:
     void testDifferentPhoneNumbers2();
     void testAllZeros();
     void testEmptyInput();
+    void testFormatConversationDate_data();
+    void testFormatConversationDate();
     void benchmark_serialize()
     {
         NetworkPacket pack(QStringLiteral("bla"), QVariantMap{{QStringLiteral("test"), 54321}});
@@ -256,6 +258,29 @@ void SmsHelperTest::testEmptyInput()
 
     QVERIFY2(!SmsHelper::isPhoneNumberMatch(empty, shortCode), "The empty string matched a shortcode phone number");
     QVERIFY2(!SmsHelper::isPhoneNumberMatch(empty, realNumber), "The empty string matched a real phone number");
+}
+
+void SmsHelperTest::testFormatConversationDate_data()
+{
+    QTest::addColumn<QDateTime>("date");
+    QTest::addColumn<QString>("expected");
+
+    QTest::newRow("today") << QDateTime(QDate(2026, 10, 12), QTime(9, 5)) << QStringLiteral("09:05");
+    QTest::newRow("later today") << QDateTime(QDate(2026, 10, 12), QTime(15, 0)) << QStringLiteral("15:00");
+    QTest::newRow("yesterday") << QDateTime(QDate(2026, 10, 11), QTime(23, 59)) << QStringLiteral("Yesterday");
+    QTest::newRow("this week") << QDateTime(QDate(2026, 10, 6), QTime(8, 0)) << QStringLiteral("Tue");
+    QTest::newRow("this year") << QDateTime(QDate(2026, 10, 5), QTime(8, 0)) << QStringLiteral("5 Oct");
+    QTest::newRow("last year") << QDateTime(QDate(2025, 12, 31), QTime(8, 0)) << QStringLiteral("31 Dec 2025");
+}
+
+void SmsHelperTest::testFormatConversationDate()
+{
+    QFETCH(QDateTime, date);
+    QFETCH(QString, expected);
+
+    QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedKingdom));
+    const QDateTime now(QDate(2026, 10, 12), QTime(14, 30));
+    QCOMPARE(SmsHelper::formatConversationDate(date, now), expected);
 }
 
 QTEST_GUILESS_MAIN(SmsHelperTest);

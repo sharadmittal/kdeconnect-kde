@@ -23,6 +23,7 @@ target_link_libraries(kdeconnectsmshelper
     PUBLIC
     Qt::Core
     Qt::DBus
+    KF6::I18n
     KF6::People
     Qt::Qml
     kdeconnectdbusinterfaces

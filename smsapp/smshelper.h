@@ -7,6 +7,7 @@
 #ifndef SMSHELPER_H
 #define SMSHELPER_H
 
+#include <QDateTime>
 #include <QIcon>
 #include <QJSEngine>
 #include <QQmlEngine>
@@ -87,8 +88,18 @@ public:
      *  - The KPeople contact's icon (if known)
      *  - A generic icon
      * and then using SmsHelper::combineIcons
+     *
+     * Returns a null icon if none of the contacts has a picture
      */
     Q_INVOKABLE static QIcon getIconForAddresses(const QList<ConversationAddress> &addresses);
+
+    /**
+     * Format the date of a conversation's latest message for the conversation list:
+     * the time for today, "Yesterday", the day of the week within the last week,
+     * otherwise the date
+     */
+    Q_INVOKABLE static QString formatConversationDate(qint64 msecsSinceEpoch);
+    static QString formatConversationDate(const QDateTime &date, const QDateTime &now);
 
     /**
      * Put the specified text into the system clipboard

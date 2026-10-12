@@ -20,6 +20,7 @@
 #include <QString>
 #include <QtDebug>
 
+#include <KLocalizedString>
 #include <KPeople/PersonData>
 #include <KPeople/PersonsModel>
 
@@ -310,6 +311,7 @@ QString SmsHelper::getTitleForAddresses(const QList<ConversationAddress> &addres
 QIcon SmsHelper::getIconForAddresses(const QList<ConversationAddress> &addresses)
 {
     QList<QPixmap> icons;
+    bool hasPicture = false;
     for (const ConversationAddress &address : addresses) {
         const auto personData = SmsHelper::lookupPersonByAddress(address.address());
         static const QIcon defaultIcon = QIcon::fromTheme(QStringLiteral("im-user"));
@@ -324,6 +326,7 @@ QIcon SmsHelper::getIconForAddresses(const QList<ConversationAddress> &addresses
                 icons.append(defaultAvatar);
             } else {
                 icons.append(avatar);
+                hasPicture = true;
             }
         } else {
             icons.append(defaultAvatar);
@@ -332,7 +335,37 @@ QIcon SmsHelper::getIconForAddresses(const QList<ConversationAddress> &addresses
 
     // It might be nice to alphabetize by contact before combining so that the pictures don't move
     // around randomly (based on how the data came to us from Android)
+    if (!hasPicture) {
+        return QIcon();
+    }
     return combineIcons(icons);
+}
+
+QString SmsHelper::formatConversationDate(qint64 msecsSinceEpoch)
+{
+    if (msecsSinceEpoch <= 0) {
+        return QString();
+    }
+    return formatConversationDate(QDateTime::fromMSecsSinceEpoch(msecsSinceEpoch), QDateTime::currentDateTime());
+}
+
+QString SmsHelper::formatConversationDate(const QDateTime &date, const QDateTime &now)
+{
+    const QLocale locale;
+    const qint64 daysAgo = date.date().daysTo(now.date());
+    if (daysAgo <= 0) {
+        return locale.toString(date.time(), QLocale::ShortFormat);
+    }
+    if (daysAgo == 1) {
+        return i18nc("@label date of the latest message in a conversation", "Yesterday");
+    }
+    if (daysAgo < 7) {
+        return locale.dayName(date.date().dayOfWeek(), QLocale::ShortFormat);
+    }
+    if (date.date().year() == now.date().year()) {
+        return locale.toString(date.date(), i18nc("@label date format for messages from this year, see QDate::toString", "d MMM"));
+    }
+    return locale.toString(date.date(), i18nc("@label date format for messages from previous years, see QDate::toString", "d MMM yyyy"));
 }
 
 void SmsHelper::copyToClipboard(const QString &text)
