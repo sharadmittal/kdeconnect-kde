@@ -6,6 +6,7 @@
 
 #include "notification.h"
 #include "plugin_notifications_debug.h"
+#include "verificationcode.h"
 
 #include <KLocalizedString>
 #include <KNotification>
@@ -134,6 +135,25 @@ void Notification::createKNotification(const NetworkPacket &np)
     }
 
     m_notification->clearActions();
+
+    if (!m_code.isEmpty()) {
+        // Silent notifications were already on the device before it connected, so their codes are likely stale
+        const bool autoCopy = !m_silent && m_code != m_copiedCode;
+        if (autoCopy) {
+            copyCode();
+        }
+        // Google Messages adds its own "Copy <code>" action, which NotificationsPlugin already handles
+        const bool hasCopyAction = std::any_of(m_actions.cbegin(), m_actions.cend(), [this](QString action) {
+            return action.remove(QChar(0x2063)).contains(m_code);
+        });
+        if (!hasCopyAction) {
+            const QString label = autoCopy ? i18nc("@action:button %1 is a verification code", "Copied %1", m_code)
+                                           : i18nc("@action:button %1 is a verification code", "Copy %1", m_code);
+            KNotificationAction *copyAction = m_notification->addAction(label);
+            connect(copyAction, &KNotificationAction::activated, this, &Notification::copyCode);
+        }
+    }
+
     for (const QString &actionId : std::as_const(m_actions)) {
         KNotificationAction *action = m_notification->addAction(actionId);
 
@@ -214,6 +234,12 @@ QString Notification::getConversationMessages(bool supportsMarkup) const
     return conversation.chopped(supportsMarkup ? 5 : 1);
 }
 
+void Notification::copyCode()
+{
+    VerificationCode::copyToClipboard(m_code);
+    m_copiedCode = m_code;
+}
+
 void Notification::reply()
 {
     Q_EMIT replyRequested();
@@ -243,6 +269,12 @@ void Notification::parseNetworkPacket(const NetworkPacket &np)
         bool supportsMarkup = true; // The QML app and plasmoid, which query this via D-Bus, support HTML.
         m_text = getConversationMessages(supportsMarkup);
     }
+
+    // Look for a code in plain text: only the newest message of a conversation, without its markup.
+    // Google Messages puts U+2063 INVISIBLE SEPARATOR between the digits of codes.
+    QString codeSource = isConversation() ? Message::fromObject(m_conversation.last().toObject()).content : (m_text.isEmpty() ? m_ticker : m_text);
+    codeSource.prepend(m_title + QLatin1Char('\n'));
+    m_code = VerificationCode::find(codeSource.remove(QChar(0x2063)));
 
     m_hasIcon = !m_payloadHash.isEmpty();
     m_actions.clear();
