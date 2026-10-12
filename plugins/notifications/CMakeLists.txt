@@ -1,4 +1,4 @@
-kdeconnect_add_plugin(kdeconnect_notifications SOURCES sendreplydialog.cpp notificationsplugin.cpp notification.cpp)
+kdeconnect_add_plugin(kdeconnect_notifications SOURCES sendreplydialog.cpp notificationsplugin.cpp notification.cpp otpextractor.cpp)
 
 ki18n_wrap_ui(kdeconnect_notifications sendreplydialog.ui)
 target_link_libraries(kdeconnect_notifications

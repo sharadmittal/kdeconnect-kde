@@ -85,6 +85,7 @@ public Q_SLOTS:
     Q_SCRIPTABLE void dismiss();
     Q_SCRIPTABLE void reply();
     Q_SCRIPTABLE void sendReply(const QString &message);
+    Q_SCRIPTABLE void copyOtp();
 
 Q_SIGNALS:
     void dismissRequested(const QString &m_internalId);
@@ -101,6 +102,8 @@ private:
     QString m_text;
     QString m_iconPath;
     QString m_requestReplyId;
+    QString m_otp;
+    QString m_copiedOtp;
     bool m_dismissable;
     bool m_hasIcon;
     QPointer<KNotification> m_notification;

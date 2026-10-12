@@ -5,14 +5,18 @@
  */
 
 #include "notification.h"
+#include "otpextractor.h"
 #include "plugin_notifications_debug.h"
 
 #include <KLocalizedString>
 #include <KNotification>
 #include <KNotificationReplyAction>
+#include <KSystemClipboard>
+#include <QClipboard>
 #include <QFile>
 #include <QIcon>
 #include <QJsonArray>
+#include <QMimeData>
 #include <QPixmap>
 #include <QString>
 #include <QUrl>
@@ -116,6 +120,25 @@ void Notification::createKNotification(const NetworkPacket &np)
     }
 
     m_notification->clearActions();
+
+    if (!m_otp.isEmpty()) {
+        // Silent notifications were already on the phone before it connected, so their codes are probably stale
+        const bool autoCopy = !m_silent && m_otp != m_copiedOtp;
+        if (autoCopy) {
+            copyOtp();
+        }
+        const QString label = autoCopy ? i18nc("@action:button %1 is a verification code", "Copied %1", m_otp)
+                                       : i18nc("@action:button %1 is a verification code", "Copy %1", m_otp);
+        // Google Messages adds its own "Copy <code>" action, which the plugin already handles
+        const bool phoneHasCopyAction = std::any_of(m_actions.cbegin(), m_actions.cend(), [this](QString action) {
+            return action.remove(QChar(0x2063)).contains(m_otp);
+        });
+        if (!phoneHasCopyAction) {
+            KNotificationAction *copyAction = m_notification->addAction(label);
+            connect(copyAction, &KNotificationAction::activated, this, &Notification::copyOtp);
+        }
+    }
+
     for (const QString &actionId : std::as_const(m_actions)) {
         KNotificationAction *action = m_notification->addAction(actionId);
 
@@ -168,6 +191,16 @@ void Notification::applyIcon()
     m_notification->setPixmap(icon);
 }
 
+void Notification::copyOtp()
+{
+    auto mimeData = new QMimeData;
+    mimeData->setText(m_otp);
+    // Keeps the code out of Klipper's history, and stops the clipboard plugin from sending it back to the phone
+    mimeData->setData(QStringLiteral("x-kde-passwordManagerHint"), QByteArrayLiteral("secret"));
+    KSystemClipboard::instance()->setMimeData(mimeData, QClipboard::Clipboard);
+    m_copiedOtp = m_otp;
+}
+
 void Notification::reply()
 {
     Q_EMIT replyRequested();
@@ -190,6 +223,9 @@ void Notification::parseNetworkPacket(const NetworkPacket &np)
     m_silent = np.get<bool>(QStringLiteral("silent"));
     m_payloadHash = np.get<QString>(QStringLiteral("payloadHash"));
     m_requestReplyId = np.get<QString>(QStringLiteral("requestReplyId"), QString());
+    // Google Messages puts U+2063 INVISIBLE SEPARATOR between the digits of codes
+    QString otpSource = m_title + QLatin1Char('\n') + (m_text.isEmpty() ? m_ticker : m_text);
+    m_otp = OtpExtractor::extract(otpSource.remove(QChar(0x2063)));
 
     m_actions.clear();
 
