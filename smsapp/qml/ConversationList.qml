@@ -12,6 +12,7 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.kirigami.delegates as KirigamiDelegates
 import org.kde.kirigami.platform as KirigamiPlatform
+import org.kde.kirigamiaddons.components as KirigamiComponents
 import org.kde.kdeconnect.sms
 
 Kirigami.ScrollablePage
@@ -122,7 +123,7 @@ Kirigami.ScrollablePage
 
             Keys.onReturnPressed: event => {
                 event.accepted = true
-                view.currentItem.startChat()
+                view.currentItem?.startChat()
             }
             Keys.onEscapePressed: event => {
                 event.accepted = filter.text !== ""
@@ -152,7 +153,7 @@ Kirigami.ScrollablePage
                     conversationListModel.createConversationForAddress(filter.text)
                     view.currentIndex = 0
                 }
-                view.currentItem.startChat()
+                view.currentItem?.startChat()
                 filter.enabled = true
             }
 
@@ -213,7 +214,9 @@ Kirigami.ScrollablePage
 
             required property string displayNames
             required property string toolTip
-            required property var decoration
+            required property var avatar
+            required property var date
+            required property bool isUnread
             required property var attachmentPreview
             required property int index
             required property var addresses
@@ -222,6 +225,14 @@ Kirigami.ScrollablePage
 
             // Keep the currently-open chat highlighted even if this element is not focused
             highlighted: ListView.isCurrentItem
+
+            // Messages that arrive in the open chat have been seen
+            readonly property bool seen: isUnread && ListView.isCurrentItem
+            onSeenChanged: {
+                if (seen) {
+                    conversationListModel.markAsRead(conversationId);
+                }
+            }
 
             function startChat() {
                 view.currentItem.forceActiveFocus();
@@ -241,28 +252,72 @@ Kirigami.ScrollablePage
             // Note: Width calcs to account for scrollbar coming and going
             contentItem: RowLayout {
                 id: contentRow
-                spacing: Kirigami.Units.smallSpacing
+                spacing: Kirigami.Units.largeSpacing
                 implicitWidth: view.width - Kirigami.Units.largeSpacing
 
-                Kirigami.Icon {
-                    id: contactIcon
-                    source: listItem.decoration
+                KirigamiComponents.Avatar {
+                    Layout.preferredWidth: Kirigami.Units.gridUnit * 2
+                    Layout.preferredHeight: Kirigami.Units.gridUnit * 2
+                    name: listItem.text
+                    source: listItem.avatar ? `image://thumbnailsProvider/${listItem.avatar}` : ""
+                    initialsMode: listItem.isMultitarget ? KirigamiComponents.Avatar.InitialsMode.UseIcon : KirigamiComponents.Avatar.InitialsMode.UseInitials
+                    iconSource: listItem.isMultitarget ? "group" : "im-user"
                 }
 
-                // Set width here to force elide and account for scrollbar
-                KirigamiDelegates.TitleSubtitle {
-                    title: listItem.text
-                    subtitle: listItem.toolTip
-                    elide: Text.ElideRight
+                ColumnLayout {
+                    spacing: 0
                     Layout.fillWidth: true
+
+                    RowLayout {
+                        spacing: Kirigami.Units.smallSpacing
+                        Layout.fillWidth: true
+
+                        Label {
+                            text: listItem.text
+                            elide: Text.ElideRight
+                            font.bold: listItem.isUnread
+                            Layout.fillWidth: true
+                        }
+
+                        Label {
+                            text: SmsHelper.formatConversationDate(listItem.date ?? 0)
+                            font: Kirigami.Theme.smallFont
+                            color: listItem.isUnread ? Kirigami.Theme.highlightColor : Kirigami.Theme.disabledTextColor
+                            visible: text.length > 0
+                        }
+                    }
+
+                    RowLayout {
+                        spacing: Kirigami.Units.smallSpacing
+                        Layout.fillWidth: true
+
+                        Label {
+                            text: listItem.toolTip
+                            elide: Text.ElideRight
+                            font.bold: listItem.isUnread
+                            color: listItem.isUnread ? Kirigami.Theme.textColor : Kirigami.Theme.disabledTextColor
+                            Layout.fillWidth: true
+                        }
+
+                        Rectangle {
+                            visible: listItem.isUnread
+                            width: Kirigami.Units.smallSpacing * 2
+                            height: width
+                            radius: width / 2
+                            color: Kirigami.Theme.highlightColor
+
+                            Accessible.role: Accessible.Indicator
+                            Accessible.name: i18nd("kdeconnect-sms", "Unread")
+                        }
+                    }
                 }
 
                 Kirigami.ShadowedImage {
                     id: thumbnailItem
                     source: listItem.attachmentPreview === undefined ? "" : `image://thumbnailsProvider/${listItem.attachmentPreview}`
                     visible: listItem.attachmentPreview !== undefined
-                    width: KirigamiPlatform.Units.iconSizes.medium
-                    height: KirigamiPlatform.Units.iconSizes.medium
+                    Layout.preferredWidth: KirigamiPlatform.Units.iconSizes.medium
+                    Layout.preferredHeight: KirigamiPlatform.Units.iconSizes.medium
                     radius: thumbnailItem.width / 6
                 }
             }

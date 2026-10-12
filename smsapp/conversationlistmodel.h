@@ -8,6 +8,7 @@
 #ifndef CONVERSATIONLISTMODEL_H
 #define CONVERSATIONLISTMODEL_H
 
+#include <KConfigGroup>
 #include <QStandardItemModel>
 
 #include "dbusinterfaces/dbusinterfaces.h"
@@ -33,6 +34,8 @@ public:
         ConversationIdRole, // The ThreadID of the conversation
         MultitargetRole, // Indicate that this conversation is multitarget
         AttachmentPreview, // A thumbnail of the attachment of the message, if any
+        AvatarRole, // The id of the contact picture in the ThumbnailsProvider, if there is one
+        UnreadRole, // Whether the latest message is unread on the device and wasn't seen here
     };
     Q_ENUM(Roles)
 
@@ -48,6 +51,12 @@ public:
      * This method creates conversation with an arbitrary address
      */
     Q_INVOKABLE void createConversationForAddress(const QString &address);
+
+    /**
+     * Remember that the latest message of a conversation was seen here. The device isn't told,
+     * since there is no way to mark messages as read on it.
+     */
+    Q_INVOKABLE void markAsRead(qint64 conversationId);
 
 public Q_SLOTS:
     void handleCreatedConversation(const QDBusVariant &msg);
@@ -67,6 +76,8 @@ private:
 
     QStandardItem *conversationForThreadId(qint32 threadId);
     QStandardItem *getConversationForAddress(const QString &address);
+    KConfigGroup seenConversations() const;
+    void setAvatar(QStandardItem *item, const QString &id, const QIcon &icon);
 
     DeviceConversationsDbusInterface *m_conversationsInterface;
     QString m_deviceId;
