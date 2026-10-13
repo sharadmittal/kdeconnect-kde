@@ -38,6 +38,8 @@ private Q_SLOTS:
     void testEmptyInput();
     void testFormatConversationDate_data();
     void testFormatConversationDate();
+    void testFormatDaySeparator();
+    void testSameMessageGroup();
     void benchmark_serialize()
     {
         NetworkPacket pack(QStringLiteral("bla"), QVariantMap{{QStringLiteral("test"), 54321}});
@@ -281,6 +283,29 @@ void SmsHelperTest::testFormatConversationDate()
     QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedKingdom));
     const QDateTime now(QDate(2026, 10, 12), QTime(14, 30));
     QCOMPARE(SmsHelper::formatConversationDate(date, now), expected);
+}
+
+void SmsHelperTest::testFormatDaySeparator()
+{
+    QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedKingdom));
+    const QDateTime now(QDate(2026, 10, 12), QTime(14, 30));
+
+    QCOMPARE(SmsHelper::formatDaySeparator(QDateTime(QDate(2026, 10, 12), QTime(0, 1)), now), QStringLiteral("Today"));
+    QCOMPARE(SmsHelper::formatDaySeparator(QDateTime(QDate(2026, 10, 11), QTime(23, 59)), now), QStringLiteral("Yesterday"));
+    QCOMPARE(SmsHelper::formatDaySeparator(QDateTime(QDate(2026, 10, 6), QTime(8, 0)), now), QStringLiteral("Tue 6 Oct"));
+    QCOMPARE(SmsHelper::formatDaySeparator(QDateTime(QDate(2025, 12, 31), QTime(8, 0)), now), QStringLiteral("Wed 31 Dec 2025"));
+}
+
+void SmsHelperTest::testSameMessageGroup()
+{
+    const QDateTime first(QDate(2026, 10, 12), QTime(14, 30));
+
+    QVERIFY(SmsHelper::isSameMessageGroup(first, first));
+    QVERIFY(SmsHelper::isSameMessageGroup(first, first.addSecs(4 * 60 + 59)));
+    QVERIFY(!SmsHelper::isSameMessageGroup(first, first.addSecs(5 * 60)));
+    // A new day always starts a new group
+    const QDateTime lateNight(QDate(2026, 10, 12), QTime(23, 59));
+    QVERIFY(!SmsHelper::isSameMessageGroup(lateNight, lateNight.addSecs(2 * 60)));
 }
 
 QTEST_GUILESS_MAIN(SmsHelperTest);

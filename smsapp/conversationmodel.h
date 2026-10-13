@@ -36,6 +36,9 @@ public:
         DateRole,
         AvatarRole, // URI to the avatar of the sender of the message. Undefined if outgoing.
         AttachmentsRole, // The list of attachments. Undefined if there is no attachment in a message
+        FirstInGroupRole, // Whether this is the oldest message of a group of consecutive messages from the same sender
+        LastInGroupRole, // Whether this is the newest message of its group
+        FirstOfDayRole, // Whether this is the oldest message of its day
     };
 
     Q_ENUM(Roles)
@@ -85,6 +88,10 @@ private Q_SLOTS:
 
 private:
     void createRowFromMessage(const ConversationMessage &message);
+    /**
+     * Update the grouping roles of a row and of its neighbours
+     */
+    void updateGrouping(int row);
 
     DeviceConversationsDbusInterface *m_conversationsInterface;
     std::optional<ThumbnailsProvider *> m_thumbnailsProvider;
