@@ -8,7 +8,9 @@
 
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Controls
 import org.kde.kirigami as Kirigami
+import org.kde.kirigamiaddons.components as KirigamiComponents
 import org.kde.kdeconnect.sms
 
 Kirigami.ScrollablePage
@@ -23,6 +25,42 @@ Kirigami.ScrollablePage
     property string invalidId: "-1"
 
     property var addresses
+    property var avatar
+
+    titleDelegate: RowLayout {
+        spacing: Kirigami.Units.largeSpacing
+        Layout.fillWidth: true
+
+        KirigamiComponents.Avatar {
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 1.5
+            Layout.preferredHeight: Layout.preferredWidth
+            name: page.title
+            source: page.avatar ? `image://thumbnailsProvider/${page.avatar}` : ""
+            initialsMode: page.isMultitarget ? KirigamiComponents.Avatar.InitialsMode.UseIcon : KirigamiComponents.Avatar.InitialsMode.UseInitials
+            iconSource: page.isMultitarget ? "group" : "im-user"
+        }
+
+        ColumnLayout {
+            spacing: 0
+            Layout.fillWidth: true
+
+            Kirigami.Heading {
+                level: 2
+                text: page.title
+                elide: Text.ElideRight
+                Layout.fillWidth: true
+            }
+
+            Label {
+                text: SmsHelper.getSubtitleForAddresses(page.addresses)
+                visible: text.length > 0
+                font: Kirigami.Theme.smallFont
+                color: Kirigami.Theme.disabledTextColor
+                elide: Text.ElideRight
+                Layout.fillWidth: true
+            }
+        }
+    }
 
     ListView {
         id: viewport

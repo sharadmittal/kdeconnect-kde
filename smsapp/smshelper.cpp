@@ -308,6 +308,17 @@ QString SmsHelper::getTitleForAddresses(const QList<ConversationAddress> &addres
     return titleParts.join(QLatin1String(", "));
 }
 
+QString SmsHelper::getSubtitleForAddresses(const QList<ConversationAddress> &addresses)
+{
+    if (addresses.size() > 1) {
+        return i18ncp("@label number of people in a group conversation", "%1 person", "%1 people", addresses.size());
+    }
+    if (addresses.size() == 1 && SmsHelper::lookupPersonByAddress(addresses.first().address())) {
+        return addresses.first().address();
+    }
+    return QString();
+}
+
 QIcon SmsHelper::getIconForAddresses(const QList<ConversationAddress> &addresses)
 {
     QList<QPixmap> icons;

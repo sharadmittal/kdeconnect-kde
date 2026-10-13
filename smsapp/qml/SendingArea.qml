@@ -53,24 +53,92 @@ ColumnLayout {
 
         RowLayout {
             anchors.fill: parent
+            spacing: Kirigami.Units.smallSpacing
+
+            Controls.ToolButton {
+                id: attachFilesButton
+                enabled: true
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 2
+                Layout.preferredHeight: Kirigami.Units.gridUnit * 2
+                padding: 0
+                Text {
+                    id: attachedFilesCount
+                    text: selectedFileUrls.length
+                    color: "red"
+                    visible: selectedFileUrls.length > 0
+                }
+                Kirigami.Icon {
+                    source: "mail-attachment-symbolic"
+                    isMask: true
+                    smooth: true
+                    anchors.centerIn: parent
+                    width: Kirigami.Units.gridUnit * 1.5
+                    height: width
+                }
+
+                Controls.ToolTip.text: i18nc("@info:tooltip", "Attach an image or file")
+                Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
+                Controls.ToolTip.visible: hovered
+
+                onClicked: {
+                    fileDialog.open()
+                }
+            }
+
+            Controls.ToolButton {
+                id: clearAttachmentButton
+                visible: selectedFileUrls.length > 0
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 2
+                Layout.preferredHeight: Kirigami.Units.gridUnit * 2
+                padding: 0
+                Kirigami.Icon {
+                    id: cancelIcon
+                    source: "edit-clear"
+                    isMask: true
+                    smooth: true
+                    anchors.centerIn: parent
+                    width: Kirigami.Units.gridUnit * 1.5
+                    height: width
+                }
+
+                Controls.ToolTip.text: i18nc("@info:tooltip", "Clear attachments")
+                Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
+                Controls.ToolTip.visible: hovered
+
+                onClicked: {
+                    selectedFileUrls = []
+                }
+            }
 
             Controls.ScrollView {
+                id: messageFieldScroll
                 Layout.fillWidth: true
+                Layout.alignment: Qt.AlignVCenter
                 Layout.maximumHeight: page.height > 300 ? page.height / 3 : 2 * page.height / 3
-                contentWidth: page.width - sendButtonArea.width
+                contentWidth: availableWidth
                 clip: true
                 Controls.ScrollBar.horizontal.policy: Controls.ScrollBar.AlwaysOff
 
+                background: Rectangle {
+                    radius: Math.min(height / 2, Kirigami.Units.gridUnit)
+                    color: Kirigami.ColorUtils.tintWithAlpha(Kirigami.Theme.backgroundColor, Kirigami.Theme.textColor, 0.06)
+                    border.width: 1
+                    border.color: messageField.activeFocus ? Kirigami.Theme.highlightColor : Kirigami.ColorUtils.tintWithAlpha(Kirigami.Theme.backgroundColor, Kirigami.Theme.textColor, 0.2)
+                }
+
                 Controls.TextArea {
-                    width: parent.width
+                    width: messageFieldScroll.availableWidth
                     id: messageField
                     placeholderText: i18nd("kdeconnect-sms", "Send a message…")
                     wrapMode: TextEdit.Wrap
                     topPadding: Kirigami.Units.gridUnit * 0.5
                     bottomPadding: topPadding
+                    leftPadding: Kirigami.Units.gridUnit * 0.75
+                    rightPadding: leftPadding
                     selectByMouse: true
                     hoverEnabled: true
-
+                    // The scroll view draws the rounded field
+                    background: null
                     Keys.onReturnPressed: event => {
                         if (event.key === Qt.Key_Return) {
                             if (event.modifiers & Qt.ShiftModifier) {
@@ -98,109 +166,44 @@ ColumnLayout {
                 id: sendButtonArea
                 Layout.alignment: Qt.AlignBottom
 
-                RowLayout {
-                    Controls.ToolButton {
-                        id: attachFilesButton
-                        enabled: true
-                        Layout.preferredWidth: Kirigami.Units.gridUnit * 2
-                        Layout.preferredHeight: Kirigami.Units.gridUnit * 2
-                        padding: 0
-                        Text {
-                            id: attachedFilesCount
-                            text: selectedFileUrls.length
-                            color: "red"
-                            visible: selectedFileUrls.length > 0
-                        }
-                        Kirigami.Icon {
-                            source: "mail-attachment-symbolic"
-                            isMask: true
-                            smooth: true
-                            anchors.centerIn: parent
-                            width: Kirigami.Units.gridUnit * 1.5
-                            height: width
-                        }
+                Controls.RoundButton {
+                    property bool isSendingInProcess: false
 
-                        Controls.ToolTip.text: i18nc("@info:tooltip", "Attach an image or file")
-                        Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
-                        Controls.ToolTip.visible: hovered
+                    id: sendButton
+                    enabled: (messageField.text.length || selectedFileUrls.length) && !isSendingInProcess
+                    Layout.preferredWidth: Kirigami.Units.gridUnit * 2
+                    Layout.preferredHeight: Kirigami.Units.gridUnit * 2
+                    icon.name: "document-send"
+                    highlighted: enabled
 
-                        onClicked: {
-                            fileDialog.open()
+                    property bool messageSent: false
+
+                    Controls.ToolTip.text: i18nc("@info:tooltip", "Send message")
+                    Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
+                    Controls.ToolTip.visible: hovered
+
+                    onClicked: {
+
+                        // prevent sending the same message several times
+                        // and don't touch enabled property
+                        if (isSendingInProcess){
+                            return;
                         }
-                    }
+                        isSendingInProcess = true
 
-                    Controls.ToolButton {
-                        id: clearAttachmentButton
-                        visible: selectedFileUrls.length > 0
-                        Layout.preferredWidth: Kirigami.Units.gridUnit * 2
-                        Layout.preferredHeight: Kirigami.Units.gridUnit * 2
-                        padding: 0
-                        Kirigami.Icon {
-                            id: cancelIcon
-                            source: "edit-clear"
-                            isMask: true
-                            smooth: true
-                            anchors.centerIn: parent
-                            width: Kirigami.Units.gridUnit * 1.5
-                            height: width
+                        if (SmsHelper.totalMessageSize(selectedFileUrls, messageField.text) > maxMessageSize) {
+                            messageDialog.visible = true
+                        } else if (page.conversationId === page.invalidId) {
+                            messageSent = conversationModel.startNewConversation(messageField.text, addresses, selectedFileUrls)
+                        } else {
+                            messageSent = conversationModel.sendReplyToConversation(messageField.text, selectedFileUrls)
                         }
 
-                        Controls.ToolTip.text: i18nc("@info:tooltip", "Clear attachments")
-                        Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
-                        Controls.ToolTip.visible: hovered
-
-                        onClicked: {
+                        if (messageSent) {
+                            messageField.text = ""
                             selectedFileUrls = []
                         }
-                    }
-
-                    Controls.ToolButton {
-                        property bool isSendingInProcess: false
-
-                        id: sendButton
-                        enabled: (messageField.text.length || selectedFileUrls.length) && !isSendingInProcess
-                        Layout.preferredWidth: Kirigami.Units.gridUnit * 2
-                        Layout.preferredHeight: Kirigami.Units.gridUnit * 2
-                        padding: 0
-                        Kirigami.Icon {
-                            source: "document-send"
-                            enabled: sendButton.enabled
-                            isMask: true
-                            smooth: true
-                            anchors.centerIn: parent
-                            width: Kirigami.Units.gridUnit * 1.5
-                            height: width
-                        }
-
-                        property bool messageSent: false
-
-                        Controls.ToolTip.text: i18nc("@info:tooltip", "Send message")
-                        Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
-                        Controls.ToolTip.visible: hovered
-
-                        onClicked: {
-
-                            // prevent sending the same message several times
-                            // and don't touch enabled property
-                            if (isSendingInProcess){
-                                return;
-                            }
-                            isSendingInProcess = true
-
-                            if (SmsHelper.totalMessageSize(selectedFileUrls, messageField.text) > maxMessageSize) {
-                                messageDialog.visible = true
-                            } else if (page.conversationId === page.invalidId) {
-                                messageSent = conversationModel.startNewConversation(messageField.text, addresses, selectedFileUrls)
-                            } else {
-                                messageSent = conversationModel.sendReplyToConversation(messageField.text, selectedFileUrls)
-                            }
-
-                            if (messageSent) {
-                                messageField.text = ""
-                                selectedFileUrls = []
-                            }
-                            isSendingInProcess = false
-                        }
+                        isSendingInProcess = false
                     }
                 }
 
@@ -212,7 +215,6 @@ ColumnLayout {
                 }
             }
         }
-
     }
 
 

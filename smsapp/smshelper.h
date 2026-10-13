@@ -84,6 +84,12 @@ public:
     Q_INVOKABLE static QString getTitleForAddresses(const QList<ConversationAddress> &addresses);
 
     /**
+     * Get the line shown under a conversation's title: the phone number of a known contact,
+     * or the number of people in a group conversation
+     */
+    Q_INVOKABLE static QString getSubtitleForAddresses(const QList<ConversationAddress> &addresses);
+
+    /**
      * Get a combined icon for all contacts by finding:
      *  - The KPeople contact's icon (if known)
      *  - A generic icon
