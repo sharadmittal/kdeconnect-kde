@@ -21,6 +21,8 @@ Kirigami.ApplicationWindow
     height: 600
 
     property alias devicesCount : instantiator.count
+    // Whether the conversation list and a conversation fit next to each other
+    readonly property bool fitsTwoPages: pageStack.width >= pageStack.defaultColumnWidth * 2
 
     property var deviceActions : []
 
@@ -73,6 +75,35 @@ Kirigami.ApplicationWindow
         title: i18nd("kdeconnect-sms", "KDE Connect SMS")
         devicesCount: root.devicesCount;
     }
+
+    Component {
+        id: placeholderPageComponent
+        Kirigami.Page {
+            readonly property bool isPlaceholder: true
+            globalToolBarStyle: Kirigami.ApplicationHeaderStyle.None
+
+            Kirigami.PlaceholderMessage {
+                anchors.centerIn: parent
+                width: parent.width - Kirigami.Units.gridUnit * 4
+                icon.name: "view-conversation-balloon"
+                text: i18nd("kdeconnect-sms", "Select a conversation or start a new one")
+            }
+        }
+    }
+
+    // Fill the space next to the list when no conversation is open, but don't hide the list
+    // behind it when only one page fits
+    function updatePlaceholder() {
+        if (fitsTwoPages && pageStack.depth === 1) {
+            pageStack.push(placeholderPageComponent);
+            pageStack.currentIndex = 0;
+        } else if (!fitsTwoPages && pageStack.lastItem?.isPlaceholder) {
+            pageStack.pop();
+        }
+    }
+
+    onFitsTwoPagesChanged: updatePlaceholder()
+    Component.onCompleted: Qt.callLater(updatePlaceholder)
 
     Component {
         id: aboutPageComponent

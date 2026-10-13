@@ -37,6 +37,7 @@ class AppData : public QObject
     Q_OBJECT
     Q_PROPERTY(QString initialMessage MEMBER m_initialMessage NOTIFY initialMessageChanged)
     Q_PROPERTY(QString deviceId READ deviceId WRITE setDeviceId NOTIFY deviceIdChanged)
+    Q_PROPERTY(qint64 lastConversationId READ lastConversationId WRITE setLastConversationId NOTIFY lastConversationIdChanged)
 
 public:
     AppData(const QString &initialMessage, const QString &deviceId)
@@ -65,11 +66,28 @@ public:
         return m_deviceId;
     }
 
+    void setLastConversationId(qint64 conversationId)
+    {
+        if (conversationId == lastConversationId()) {
+            return;
+        }
+        // Remembered so that it can be opened again on the next start
+        KConfigGroup stateConfig = KSharedConfig::openStateConfig()->group(QString());
+        stateConfig.writeEntry(QStringLiteral("LastConversationId"), conversationId);
+        Q_EMIT lastConversationIdChanged();
+    }
+
+    qint64 lastConversationId() const
+    {
+        return KSharedConfig::openStateConfig()->group(QString()).readEntry(QStringLiteral("LastConversationId"), qint64(-1));
+    }
+
     QString m_initialMessage;
 
 Q_SIGNALS:
     void initialMessageChanged();
     void deviceIdChanged();
+    void lastConversationIdChanged();
 
 private:
     QString m_deviceId;

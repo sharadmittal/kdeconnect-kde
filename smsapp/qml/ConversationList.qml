@@ -73,6 +73,22 @@ Kirigami.ScrollablePage
     }
 
     property string initialMessage : AppData.initialMessage
+    property bool restoredConversation: false
+
+    // Open the conversation that was open last time, once it has been loaded. Only when both
+    // the list and the conversation fit, so that the list is what's shown in narrow windows.
+    function restoreConversation() {
+        if (restoredConversation || !applicationWindow().fitsTwoPages || AppData.lastConversationId < 0) {
+            return;
+        }
+        for (let i = 0; i < view.count; ++i) {
+            if (view.model.data(view.model.index(i, 0), ConversationListModel.ConversationIdRole) == AppData.lastConversationId) {
+                view.currentIndex = i;
+                view.currentItem?.startChat();
+                return;
+            }
+        }
+    }
     property string currentSearchText
     property alias conversationListModel: conversationListModel
     property int devicesCount
@@ -187,6 +203,8 @@ Kirigami.ScrollablePage
             focus = true
         }
 
+        onCountChanged: page.restoreConversation()
+
         Kirigami.PlaceholderMessage {
             anchors.centerIn: parent
             width: parent.width - (Kirigami.Units.largeSpacing * 4)
@@ -235,11 +253,16 @@ Kirigami.ScrollablePage
             }
 
             function startChat() {
+                page.restoredConversation = true;
+                AppData.lastConversationId = listItem.conversationId;
                 view.currentItem.forceActiveFocus();
+                // Replace the open conversation, or the placeholder
+                applicationWindow().pageStack.pop(page);
                 applicationWindow().pageStack.push(chatView, {
                                                        addresses: listItem.addresses,
                                                        conversationId: listItem.conversationId,
                                                        isMultitarget: listItem.isMultitarget,
+                                                       avatar: listItem.avatar,
                                                        initialMessage: page.initialMessage})
                 initialMessage = ""
             }
