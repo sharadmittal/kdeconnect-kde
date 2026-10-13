@@ -84,14 +84,15 @@ Item {
             elide: Text.ElideRight
             topPadding: Kirigami.Units.largeSpacing
             bottomPadding: Kirigami.Units.smallSpacing / 2
-            Layout.leftMargin: avatarSlot.Layout.preferredWidth + Kirigami.Units.largeSpacing + Kirigami.Units.smallSpacing + root.bubbleRadius / 2
+            Layout.leftMargin: avatarSlot.width + Kirigami.Units.largeSpacing + Kirigami.Units.smallSpacing + root.bubbleRadius / 2
             Layout.fillWidth: true
         }
 
-        RowLayout {
+        // Positioned with anchors rather than a layout: the height of the bubble depends on its
+        // width, because the text wraps, which a layout would keep rearranging
+        Item {
             id: bubbleRow
-            spacing: Kirigami.Units.smallSpacing
-            layoutDirection: root.sentByMe ? Qt.RightToLeft : Qt.LeftToRight
+            implicitHeight: Math.max(messageBox.height, avatarSlot.visible ? avatarSlot.height : 0)
             Layout.fillWidth: true
             Layout.leftMargin: Kirigami.Units.largeSpacing
             Layout.rightMargin: Kirigami.Units.largeSpacing
@@ -101,9 +102,10 @@ Item {
             Item {
                 id: avatarSlot
                 visible: root.hasAvatar
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 1.5
-                Layout.preferredHeight: Layout.preferredWidth
-                Layout.alignment: Qt.AlignBottom
+                width: Kirigami.Units.gridUnit * 1.5
+                height: width
+                anchors.left: parent.left
+                anchors.bottom: parent.bottom
 
                 KirigamiComponents.Avatar {
                     anchors.fill: parent
@@ -115,11 +117,25 @@ Item {
             Kirigami.ShadowedRectangle {
                 id: messageBox
 
-                readonly property real maximumWidth: bubbleRow.width * (applicationWindow().wideScreen ? 0.7 : 0.85) - avatarSlot.width
+                readonly property real maximumWidth: bubbleRow.width * (applicationWindow().wideScreen ? 0.7 : 0.85) - (avatarSlot.visible ? avatarSlot.width : 0)
                 readonly property real sideTopRadius: root.firstInGroup ? root.bubbleRadius : root.groupedCornerRadius
 
-                Layout.preferredWidth: Math.min(Math.max(messageLabel.implicitWidth, attachmentGrid.implicitWidth), maximumWidth)
-                Layout.preferredHeight: bubbleContent.implicitHeight
+                width: Math.min(Math.max(naturalText.implicitWidth + messageLabel.leftPadding + messageLabel.rightPadding, attachmentGrid.implicitWidth), maximumWidth)
+
+                // The width of the text without wrapping. Measured separately, since the wrapped
+                // label's implicit width depends on the width of the bubble.
+                Text {
+                    id: naturalText
+                    visible: false
+                    text: messageLabel.text
+                    textFormat: Text.RichText
+                    font: messageLabel.font
+                }
+                height: bubbleContent.implicitHeight
+                anchors.top: parent.top
+                anchors.right: root.sentByMe ? parent.right : undefined
+                anchors.left: root.sentByMe ? undefined : (avatarSlot.visible ? avatarSlot.right : parent.left)
+                anchors.leftMargin: avatarSlot.visible ? Kirigami.Units.smallSpacing : 0
 
                 color: root.sentByMe ? Kirigami.Theme.highlightColor
                                      : Kirigami.ColorUtils.tintWithAlpha(Kirigami.Theme.backgroundColor, Kirigami.Theme.textColor, 0.1)
@@ -179,9 +195,6 @@ Item {
                 }
             }
 
-            Item {
-                Layout.fillWidth: true
-            }
         }
 
         Button {
@@ -193,7 +206,7 @@ Item {
             font: Kirigami.Theme.smallFont
             Layout.alignment: Qt.AlignLeft
             Layout.topMargin: Kirigami.Units.smallSpacing
-            Layout.leftMargin: Kirigami.Units.largeSpacing + (root.hasAvatar ? avatarSlot.Layout.preferredWidth + Kirigami.Units.smallSpacing : 0)
+            Layout.leftMargin: Kirigami.Units.largeSpacing + (root.hasAvatar ? avatarSlot.width + Kirigami.Units.smallSpacing : 0)
             onClicked: {
                 SmsHelper.copyVerificationCode(root.verificationCode);
                 applicationWindow().showPassiveNotification(i18ndc("kdeconnect-sms", "@info %1 is a verification code", "Copied %1", root.verificationCode));
@@ -207,7 +220,7 @@ Item {
             layoutDirection: root.sentByMe ? Qt.RightToLeft : Qt.LeftToRight
             Layout.alignment: root.sentByMe ? Qt.AlignRight : Qt.AlignLeft
             Layout.topMargin: Kirigami.Units.smallSpacing / 2
-            Layout.leftMargin: Kirigami.Units.largeSpacing + (root.hasAvatar ? avatarSlot.Layout.preferredWidth + Kirigami.Units.smallSpacing : 0) + root.bubbleRadius / 2
+            Layout.leftMargin: Kirigami.Units.largeSpacing + (root.hasAvatar ? avatarSlot.width + Kirigami.Units.smallSpacing : 0) + root.bubbleRadius / 2
             Layout.rightMargin: Kirigami.Units.largeSpacing + root.bubbleRadius / 2
 
             Kirigami.Icon {
