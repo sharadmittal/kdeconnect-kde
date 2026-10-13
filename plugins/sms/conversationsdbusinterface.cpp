@@ -95,7 +95,19 @@ void ConversationsDbusInterface::addMessages(const QList<ConversationMessage> &m
         updatedConversationIDs.insert(message.threadID());
 
         if (m_known_messages[threadId].contains(message.uID())) {
-            // This message has already been processed. Don't do anything.
+            // This message has already been processed, but its type changes as it is sent,
+            // for example from outbox to sent or failed
+            auto &conversation = m_conversations[threadId];
+            for (auto it = conversation.begin(); it != conversation.end(); ++it) {
+                if (it->uID() == message.uID()) {
+                    if (it->type() != message.type()) {
+                        conversation.erase(it);
+                        conversation.insert(message.date(), message);
+                        Q_EMIT conversationUpdated(QDBusVariant(QVariant::fromValue(message)));
+                    }
+                    break;
+                }
+            }
             continue;
         }
 

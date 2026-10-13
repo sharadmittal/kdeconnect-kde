@@ -124,11 +124,17 @@ Kirigami.ScrollablePage
             firstInGroup: model.isFirstInGroup ?? true
             lastInGroup: model.isLastInGroup ?? true
             firstOfDay: model.isFirstOfDay ?? false
+            messageType: model.messageType ?? 0
 
             width: viewport.width
 
             onMessageCopyRequested: {
                 SmsHelper.copyToClipboard(message)
+            }
+
+            // Send the text again as a new message
+            onRetryRequested: {
+                conversationModel.sendReplyToConversation(model.display, [])
             }
 
             function prefetch() {

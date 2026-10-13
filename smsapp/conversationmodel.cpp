@@ -31,6 +31,7 @@ ConversationModel::ConversationModel(QObject *parent)
     roles.insert(Roles::FirstInGroupRole, "isFirstInGroup");
     roles.insert(Roles::LastInGroupRole, "isLastInGroup");
     roles.insert(Roles::FirstOfDayRole, "isFirstOfDay");
+    roles.insert(Roles::TypeRole, "messageType");
     setItemRoleNames(roles);
 }
 
@@ -183,6 +184,13 @@ void ConversationModel::createRowFromMessage(const ConversationMessage &message)
     }
 
     if (knownMessageIDs.contains(message.uID())) {
+        // The type of a message changes as it is sent
+        for (int row = 0; row < rowCount(); ++row) {
+            if (item(row)->data(Roles::UidRole).toInt() == message.uID()) {
+                item(row)->setData(message.type(), Roles::TypeRole);
+                return;
+            }
+        }
         qCDebug(KDECONNECT_SMS_CONVERSATION_MODEL) << "Ignoring duplicate message with ID" << message.uID();
         return;
     }
@@ -202,6 +210,8 @@ void ConversationModel::createRowFromMessage(const ConversationMessage &message)
     item->setData(message.isOutgoing(), Roles::FromMeRole);
     item->setData(message.date(), Roles::DateRole);
     item->setData(senderName, Roles::SenderRole);
+    item->setData(message.type(), Roles::TypeRole);
+    item->setData(message.uID(), Roles::UidRole);
 
     QList<QVariant> attachmentInfoList;
     const QList<Attachment> attachmentList = message.attachments();

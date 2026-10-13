@@ -26,6 +26,11 @@ Item {
     property bool firstInGroup: true
     property bool lastInGroup: true
     property bool firstOfDay: false
+    property int messageType: 0
+
+    // ConversationMessage::Types
+    readonly property bool sending: messageType === 4 || messageType === 6 // Outbox, Queued
+    readonly property bool failed: messageType === 5
 
     // Received messages in group chats have the sender's avatar next to them
     readonly property bool hasAvatar: !sentByMe && multiTarget
@@ -34,6 +39,7 @@ Item {
     readonly property color bubbleTextColor: sentByMe ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
 
     signal messageCopyRequested(string message)
+    signal retryRequested()
 
     function linkify(text, linkColor) {
         let s = text.replace(/[&<>]/g, function(c) {
@@ -177,16 +183,40 @@ Item {
             }
         }
 
-        Label {
-            id: timeLabel
-            visible: root.lastInGroup
-            text: root.dateTime.toLocaleTimeString(Qt.locale(), Locale.ShortFormat)
-            font: Kirigami.Theme.smallFont
-            color: Kirigami.Theme.disabledTextColor
-            topPadding: Kirigami.Units.smallSpacing / 2
+        RowLayout {
+            id: statusRow
+            visible: root.lastInGroup || root.sending || root.failed
+            spacing: Kirigami.Units.smallSpacing
+            layoutDirection: root.sentByMe ? Qt.RightToLeft : Qt.LeftToRight
             Layout.alignment: root.sentByMe ? Qt.AlignRight : Qt.AlignLeft
+            Layout.topMargin: Kirigami.Units.smallSpacing / 2
             Layout.leftMargin: Kirigami.Units.largeSpacing + (root.hasAvatar ? avatarSlot.Layout.preferredWidth + Kirigami.Units.smallSpacing : 0) + root.bubbleRadius / 2
             Layout.rightMargin: Kirigami.Units.largeSpacing + root.bubbleRadius / 2
+
+            Kirigami.Icon {
+                visible: root.sending || root.failed
+                source: root.failed ? "dialog-error-symbolic" : "chronometer-symbolic"
+                color: root.failed ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.disabledTextColor
+                isMask: true
+                Layout.preferredWidth: Kirigami.Units.iconSizes.small
+                Layout.preferredHeight: Kirigami.Units.iconSizes.small
+            }
+
+            Label {
+                id: timeLabel
+                text: root.failed ? i18nd("kdeconnect-sms", "Not sent")
+                      : root.sending ? i18nd("kdeconnect-sms", "Sending…")
+                      : root.dateTime.toLocaleTimeString(Qt.locale(), Locale.ShortFormat)
+                font: Kirigami.Theme.smallFont
+                color: root.failed ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.disabledTextColor
+            }
+
+            Kirigami.LinkButton {
+                visible: root.failed
+                text: i18nd("kdeconnect-sms", "Retry")
+                font: Kirigami.Theme.smallFont
+                onClicked: root.retryRequested()
+            }
         }
     }
 }

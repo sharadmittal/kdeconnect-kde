@@ -39,6 +39,8 @@ public:
         FirstInGroupRole, // Whether this is the oldest message of a group of consecutive messages from the same sender
         LastInGroupRole, // Whether this is the newest message of its group
         FirstOfDayRole, // Whether this is the oldest message of its day
+        TypeRole, // The ConversationMessage::Types value of the message, such as sent, outbox or failed
+        UidRole, // The unique id of the message
     };
 
     Q_ENUM(Roles)
