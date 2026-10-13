@@ -1,6 +1,7 @@
 add_library(kdeconnectsmshelper STATIC
     smshelper.cpp
     gsmasciimap.cpp
+    ${CMAKE_SOURCE_DIR}/plugins/notifications/verificationcode.cpp
 )
 
 ecm_qt_declare_logging_category(kdeconnectsmshelper
@@ -23,6 +24,7 @@ target_link_libraries(kdeconnectsmshelper
     PUBLIC
     Qt::Core
     Qt::DBus
+    KF6::GuiAddons
     KF6::I18n
     KF6::People
     Qt::Qml

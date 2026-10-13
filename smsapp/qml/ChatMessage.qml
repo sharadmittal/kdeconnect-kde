@@ -31,6 +31,7 @@ Item {
     // ConversationMessage::Types
     readonly property bool sending: messageType === 4 || messageType === 6 // Outbox, Queued
     readonly property bool failed: messageType === 5
+    readonly property string verificationCode: sentByMe ? "" : SmsHelper.findVerificationCode(messageBody)
 
     // Received messages in group chats have the sender's avatar next to them
     readonly property bool hasAvatar: !sentByMe && multiTarget
@@ -180,6 +181,22 @@ Item {
 
             Item {
                 Layout.fillWidth: true
+            }
+        }
+
+        Button {
+            id: copyCodeButton
+            visible: root.verificationCode.length > 0
+            text: i18ndc("kdeconnect-sms", "@action:button %1 is a verification code", "Copy %1", root.verificationCode)
+            icon.name: "edit-copy"
+            flat: false
+            font: Kirigami.Theme.smallFont
+            Layout.alignment: Qt.AlignLeft
+            Layout.topMargin: Kirigami.Units.smallSpacing
+            Layout.leftMargin: Kirigami.Units.largeSpacing + (root.hasAvatar ? avatarSlot.Layout.preferredWidth + Kirigami.Units.smallSpacing : 0)
+            onClicked: {
+                SmsHelper.copyVerificationCode(root.verificationCode);
+                applicationWindow().showPassiveNotification(i18ndc("kdeconnect-sms", "@info %1 is a verification code", "Copied %1", root.verificationCode));
             }
         }
 
