@@ -126,6 +126,19 @@ public:
     Q_INVOKABLE static void copyToClipboard(const QString &text);
 
     /**
+     * Find a one-time verification code in the text of a message
+     *
+     * @return the code, or an empty string if there is none
+     */
+    Q_INVOKABLE static QString findVerificationCode(const QString &text);
+
+    /**
+     * Put a verification code into the system clipboard, marked as secret so that it stays out
+     * of the clipboard history
+     */
+    Q_INVOKABLE static void copyVerificationCode(const QString &code);
+
+    /**
      * Get the data for all persons currently stored on device
      */
     static QList<QSharedPointer<KPeople::PersonData>> getAllPersons();

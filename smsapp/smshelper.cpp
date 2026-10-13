@@ -25,6 +25,7 @@
 #include <KPeople/PersonsModel>
 
 #include "models/conversationmessage.h"
+#include "plugins/notifications/verificationcode.h"
 #include "smsapp/gsmasciimap.h"
 
 QObject *SmsHelper::singletonProvider(QQmlEngine * /*engine*/, QJSEngine * /*scriptEngine*/)
@@ -410,6 +411,16 @@ bool SmsHelper::isSameMessageGroup(const QDateTime &older, const QDateTime &newe
 void SmsHelper::copyToClipboard(const QString &text)
 {
     QGuiApplication::clipboard()->setText(text);
+}
+
+QString SmsHelper::findVerificationCode(const QString &text)
+{
+    return VerificationCode::find(text);
+}
+
+void SmsHelper::copyVerificationCode(const QString &code)
+{
+    VerificationCode::copyToClipboard(code);
 }
 
 SmsCharCount SmsHelper::getCharCount(const QString &message)
