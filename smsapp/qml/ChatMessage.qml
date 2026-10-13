@@ -9,11 +9,12 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import org.kde.kirigami as Kirigami
 import org.kde.kirigamiaddons.components as KirigamiComponents
+import org.kde.kdeconnect.sms
 
 Item {
     id: root
 
-    height: Math.max(avatar.height, messageBubble.height)
+    height: messageColumn.implicitHeight
 
     property string messageBody
     property bool sentByMe
@@ -22,10 +23,19 @@ Item {
     property string name
     property bool multiTarget
     property var attachmentList: []
+    property bool firstInGroup: true
+    property bool lastInGroup: true
+    property bool firstOfDay: false
+
+    // Received messages in group chats have the sender's avatar next to them
+    readonly property bool hasAvatar: !sentByMe && multiTarget
+    readonly property real bubbleRadius: Kirigami.Units.cornerRadius * 3
+    readonly property real groupedCornerRadius: Kirigami.Units.cornerRadius
+    readonly property color bubbleTextColor: sentByMe ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
 
     signal messageCopyRequested(string message)
 
-    function linkify(text) {
+    function linkify(text, linkColor) {
         let s = text.replace(/[&<>]/g, function(c) {
             return {"&": "&amp;", "<": "&lt;", ">": "&gt;"}[c];
         });
@@ -33,104 +43,150 @@ Item {
         // Match http(s):// and www. URLs; allow () in paths but exclude trailing punctuation
         s = s.replace(/(https?:\/\/[^\s<>]*[^\s<>.,;:!?\)\]"']|www\.[^\s<>]*[^\s<>.,;:!?\)\]"'])/gi, function(url) {
             const href = url.startsWith("www.") ? "https://" + url : url;
-            return '<a href="' + href + '">' + url + '</a>';
+            return '<a href="' + href + '" style="color: ' + linkColor + '">' + url + '</a>';
         });
 
         return s.replace(/\n/g, "<br>");
     }
 
-    KirigamiComponents.Avatar {
-        id: avatar
-        width: visible ? Kirigami.Units.gridUnit * 2 : 0
-        height: width
-        visible: !root.sentByMe && multiTarget
-        name: root.name
+    Kirigami.Theme.colorSet: Kirigami.Theme.View
+    Kirigami.Theme.inherit: false
 
-        anchors.left: parent.left
-        anchors.leftMargin: Kirigami.Units.largeSpacing
-    }
+    ColumnLayout {
+        id: messageColumn
+        width: parent.width
+        spacing: 0
 
-    RowLayout {
-        id: messageBubble
+        Label {
+            id: daySeparator
+            visible: root.firstOfDay
+            text: SmsHelper.formatDaySeparator(root.dateTime.getTime())
+            font: Kirigami.Theme.smallFont
+            color: Kirigami.Theme.disabledTextColor
+            topPadding: Kirigami.Units.largeSpacing * 2
+            bottomPadding: Kirigami.Units.smallSpacing
+            Layout.alignment: Qt.AlignHCenter
+        }
 
-        anchors.right: parent.right
-        anchors.rightMargin: Kirigami.Units.largeSpacing
-        anchors.left: avatar.right
-        anchors.leftMargin: Kirigami.Units.largeSpacing
-
-        height: messageColumn.height
-
-        Rectangle {
-            id: messageBox
-            Layout.maximumWidth: applicationWindow().wideScreen ? Math.min(messageColumn.contentWidth, root.width * 0.6) : messageColumn.contentWidth
+        Label {
+            id: authorLabel
+            visible: root.hasAvatar && root.firstInGroup
+            text: root.name
+            font: Kirigami.Theme.smallFont
+            color: Kirigami.Theme.disabledTextColor
+            elide: Text.ElideRight
+            topPadding: Kirigami.Units.largeSpacing
+            bottomPadding: Kirigami.Units.smallSpacing / 2
+            Layout.leftMargin: avatarSlot.Layout.preferredWidth + Kirigami.Units.largeSpacing + Kirigami.Units.smallSpacing + root.bubbleRadius / 2
             Layout.fillWidth: true
-            Layout.alignment: root.sentByMe ? Qt.AlignRight : Qt.AlignLeft
-            Layout.fillHeight: true
-            Layout.minimumWidth: dateLabel.implicitWidth
+        }
 
-            color: Qt.tint(Kirigami.Theme.backgroundColor, Qt.alpha(Kirigami.Theme.highlightColor, root.sentByMe ? 0.1 : 0.4))
-            radius: Kirigami.Units.cornerRadius
+        RowLayout {
+            id: bubbleRow
+            spacing: Kirigami.Units.smallSpacing
+            layoutDirection: root.sentByMe ? Qt.RightToLeft : Qt.LeftToRight
+            Layout.fillWidth: true
+            Layout.leftMargin: Kirigami.Units.largeSpacing
+            Layout.rightMargin: Kirigami.Units.largeSpacing
+            // Messages in a group are close together, groups are further apart
+            Layout.topMargin: root.firstInGroup && !authorLabel.visible ? Kirigami.Units.largeSpacing : Math.round(Kirigami.Units.smallSpacing / 2)
 
-            Kirigami.Theme.colorSet: Kirigami.Theme.View
+            Item {
+                id: avatarSlot
+                visible: root.hasAvatar
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 1.5
+                Layout.preferredHeight: Layout.preferredWidth
+                Layout.alignment: Qt.AlignBottom
 
-            Column {
-                id: messageColumn
-                width: parent.width
-
-                property int contentWidth: Math.max(Math.max(messageLabel.implicitWidth, attachmentGrid.implicitWidth), dateLabel.implicitWidth)
-                Label {
-                    id: authorLabel
-                    width: parent.width
-                    text: root.name
-                    leftPadding: Kirigami.Units.largeSpacing
-                    topPadding: Kirigami.Units.smallSpacing
-                    visible: multiTarget
-                    color: Kirigami.Theme.disabledTextColor
-                    horizontalAlignment: messageLabel.horizontalAlignment
-                }
-
-                Grid {
-                    id: attachmentGrid
-                    columns: 2
-                    padding: attachmentList.length > 0 ? Kirigami.Units.largeSpacing : 0
-                    layoutDirection: root.sentByMe ? Qt.RightToLeft : Qt.LeftToRight
-
-                    Repeater {
-                        model: attachmentList
-
-                        delegate: MessageAttachments {
-                            mimeType: modelData.mimeType
-                            partID: modelData.partID
-                            uniqueIdentifier: modelData.uniqueIdentifier
-                        }
-                    }
-                }
-
-                Kirigami.SelectableLabel {
-                    id: messageLabel
-                    visible: messageBody != ""
-                    leftPadding: Kirigami.Units.largeSpacing
-                    rightPadding: Kirigami.Units.largeSpacing
-                    topPadding: authorLabel.visible ? 0 : Kirigami.Units.largeSpacing
-                    width: parent.width
-                    horizontalAlignment: root.sentByMe ? Text.AlignRight : Text.AlignLeft
-                    wrapMode: Text.Wrap
-                    textFormat: Text.RichText
-                    text: root.linkify(root.messageBody)
-                    onLinkActivated: (link) => Qt.openUrlExternally(link)
-                }
-
-                Label {
-                    id: dateLabel
-                    width: parent.width
-                    text: Qt.formatDateTime(root.dateTime)
-                    leftPadding: Kirigami.Units.largeSpacing
-                    rightPadding: Kirigami.Units.largeSpacing
-                    bottomPadding: Kirigami.Units.smallSpacing
-                    color: Kirigami.Theme.disabledTextColor
-                    horizontalAlignment: messageLabel.horizontalAlignment
+                KirigamiComponents.Avatar {
+                    anchors.fill: parent
+                    visible: root.lastInGroup
+                    name: root.name
                 }
             }
+
+            Kirigami.ShadowedRectangle {
+                id: messageBox
+
+                readonly property real maximumWidth: bubbleRow.width * (applicationWindow().wideScreen ? 0.7 : 0.85) - avatarSlot.width
+                readonly property real sideTopRadius: root.firstInGroup ? root.bubbleRadius : root.groupedCornerRadius
+
+                Layout.preferredWidth: Math.min(Math.max(messageLabel.implicitWidth, attachmentGrid.implicitWidth), maximumWidth)
+                Layout.preferredHeight: bubbleContent.implicitHeight
+
+                color: root.sentByMe ? Kirigami.Theme.highlightColor
+                                     : Kirigami.ColorUtils.tintWithAlpha(Kirigami.Theme.backgroundColor, Kirigami.Theme.textColor, 0.1)
+
+                // The corners next to the other messages of the group, and the bottom corner on the
+                // sender's side of each bubble, which points at the sender, are less rounded
+                corners.topLeftRadius: root.sentByMe ? root.bubbleRadius : sideTopRadius
+                corners.topRightRadius: root.sentByMe ? sideTopRadius : root.bubbleRadius
+                corners.bottomLeftRadius: root.sentByMe ? root.bubbleRadius : root.groupedCornerRadius
+                corners.bottomRightRadius: root.sentByMe ? root.groupedCornerRadius : root.bubbleRadius
+
+                HoverHandler {
+                    id: bubbleHover
+                }
+
+                ToolTip.visible: bubbleHover.hovered
+                ToolTip.delay: Kirigami.Units.toolTipDelay
+                ToolTip.text: root.dateTime.toLocaleString(Qt.locale(), Locale.LongFormat)
+
+                Column {
+                    id: bubbleContent
+                    width: parent.width
+
+                    Grid {
+                        id: attachmentGrid
+                        columns: 2
+                        padding: attachmentList.length > 0 ? Kirigami.Units.smallSpacing : 0
+                        layoutDirection: root.sentByMe ? Qt.RightToLeft : Qt.LeftToRight
+
+                        Repeater {
+                            model: attachmentList
+
+                            delegate: MessageAttachments {
+                                mimeType: modelData.mimeType
+                                partID: modelData.partID
+                                uniqueIdentifier: modelData.uniqueIdentifier
+                            }
+                        }
+                    }
+
+                    Kirigami.SelectableLabel {
+                        id: messageLabel
+                        visible: messageBody != ""
+                        width: parent.width
+                        leftPadding: Kirigami.Units.largeSpacing
+                        rightPadding: Kirigami.Units.largeSpacing
+                        topPadding: Kirigami.Units.mediumSpacing
+                        bottomPadding: Kirigami.Units.mediumSpacing
+                        wrapMode: Text.Wrap
+                        textFormat: Text.RichText
+                        color: root.bubbleTextColor
+                        selectionColor: root.sentByMe ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.highlightColor
+                        selectedTextColor: root.sentByMe ? Kirigami.Theme.highlightColor : Kirigami.Theme.highlightedTextColor
+                        text: root.linkify(root.messageBody, root.sentByMe ? root.bubbleTextColor : Kirigami.Theme.linkColor)
+                        onLinkActivated: (link) => Qt.openUrlExternally(link)
+                    }
+                }
+            }
+
+            Item {
+                Layout.fillWidth: true
+            }
+        }
+
+        Label {
+            id: timeLabel
+            visible: root.lastInGroup
+            text: root.dateTime.toLocaleTimeString(Qt.locale(), Locale.ShortFormat)
+            font: Kirigami.Theme.smallFont
+            color: Kirigami.Theme.disabledTextColor
+            topPadding: Kirigami.Units.smallSpacing / 2
+            Layout.alignment: root.sentByMe ? Qt.AlignRight : Qt.AlignLeft
+            Layout.leftMargin: Kirigami.Units.largeSpacing + (root.hasAvatar ? avatarSlot.Layout.preferredWidth + Kirigami.Units.smallSpacing : 0) + root.bubbleRadius / 2
+            Layout.rightMargin: Kirigami.Units.largeSpacing + root.bubbleRadius / 2
         }
     }
 }

@@ -368,6 +368,34 @@ QString SmsHelper::formatConversationDate(const QDateTime &date, const QDateTime
     return locale.toString(date.date(), i18nc("@label date format for messages from previous years, see QDate::toString", "d MMM yyyy"));
 }
 
+QString SmsHelper::formatDaySeparator(qint64 msecsSinceEpoch)
+{
+    return formatDaySeparator(QDateTime::fromMSecsSinceEpoch(msecsSinceEpoch), QDateTime::currentDateTime());
+}
+
+QString SmsHelper::formatDaySeparator(const QDateTime &date, const QDateTime &now)
+{
+    const QLocale locale;
+    const qint64 daysAgo = date.date().daysTo(now.date());
+    if (daysAgo <= 0) {
+        return i18nc("@label separator above today's messages", "Today");
+    }
+    if (daysAgo == 1) {
+        return i18nc("@label separator above yesterday's messages", "Yesterday");
+    }
+    if (date.date().year() == now.date().year()) {
+        return locale.toString(date.date(), i18nc("@label date format for the separator above a day's messages, see QDate::toString", "ddd d MMM"));
+    }
+    return locale.toString(date.date(),
+                           i18nc("@label date format for the separator above the messages of a day in a previous year, see QDate::toString", "ddd d MMM yyyy"));
+}
+
+bool SmsHelper::isSameMessageGroup(const QDateTime &older, const QDateTime &newer)
+{
+    constexpr qint64 maxGap = 5 * 60;
+    return older.date() == newer.date() && older.secsTo(newer) < maxGap;
+}
+
 void SmsHelper::copyToClipboard(const QString &text)
 {
     QGuiApplication::clipboard()->setText(text);

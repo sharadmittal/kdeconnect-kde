@@ -102,6 +102,19 @@ public:
     static QString formatConversationDate(const QDateTime &date, const QDateTime &now);
 
     /**
+     * Format the date shown on the separator above the first message of each day:
+     * "Today", "Yesterday", otherwise the date with the day of the week
+     */
+    Q_INVOKABLE static QString formatDaySeparator(qint64 msecsSinceEpoch);
+    static QString formatDaySeparator(const QDateTime &date, const QDateTime &now);
+
+    /**
+     * Whether two consecutive messages from the same sender are shown as one group:
+     * they must be on the same day and less than five minutes apart
+     */
+    static bool isSameMessageGroup(const QDateTime &older, const QDateTime &newer);
+
+    /**
      * Put the specified text into the system clipboard
      */
     Q_INVOKABLE static void copyToClipboard(const QString &text);

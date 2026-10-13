@@ -56,7 +56,8 @@ Kirigami.ScrollablePage
                 }
             }
         }
-        spacing: Kirigami.Units.largeSpacing
+        // ChatMessage spaces the messages out
+        spacing: 0
 
         // This is a bit of a hack. Fetch unreceived data periodically,
         // in case the device looses connection, or similar
@@ -82,6 +83,9 @@ Kirigami.ScrollablePage
             dateTime: new Date(model.date)
             multiTarget: isMultitarget
             attachmentList: model.attachments
+            firstInGroup: model.isFirstInGroup ?? true
+            lastInGroup: model.isLastInGroup ?? true
+            firstOfDay: model.isFirstOfDay ?? false
 
             width: viewport.width
 

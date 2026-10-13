@@ -28,6 +28,9 @@ ConversationModel::ConversationModel(QObject *parent)
     roles.insert(Roles::SenderRole, "sender");
     roles.insert(Roles::AvatarRole, "avatar");
     roles.insert(Roles::AttachmentsRole, "attachments");
+    roles.insert(Roles::FirstInGroupRole, "isFirstInGroup");
+    roles.insert(Roles::LastInGroupRole, "isLastInGroup");
+    roles.insert(Roles::FirstOfDayRole, "isFirstOfDay");
     setItemRoleNames(roles);
 }
 
@@ -242,6 +245,30 @@ void ConversationModel::createRowFromMessage(const ConversationMessage &message)
         insertRow(0, item);
     } else {
         appendRow(item);
+    }
+    updateGrouping(item->row());
+}
+
+void ConversationModel::updateGrouping(int row)
+{
+    // Rows are sorted from the newest message to the oldest
+    const auto sameGroup = [this](int olderRow, int newerRow) {
+        const QStandardItem *older = item(olderRow);
+        const QStandardItem *newer = item(newerRow);
+        return older->data(FromMeRole) == newer->data(FromMeRole) && older->data(SenderRole) == newer->data(SenderRole)
+            && SmsHelper::isSameMessageGroup(QDateTime::fromMSecsSinceEpoch(older->data(DateRole).toLongLong()),
+                                             QDateTime::fromMSecsSinceEpoch(newer->data(DateRole).toLongLong()));
+    };
+
+    for (int r = std::max(row - 1, 0); r <= std::min(row + 1, rowCount() - 1); ++r) {
+        QStandardItem *current = item(r);
+        const bool hasOlder = r + 1 < rowCount();
+        const bool hasNewer = r > 0;
+        const QDate date = QDateTime::fromMSecsSinceEpoch(current->data(DateRole).toLongLong()).date();
+
+        current->setData(!hasOlder || date != QDateTime::fromMSecsSinceEpoch(item(r + 1)->data(DateRole).toLongLong()).date(), FirstOfDayRole);
+        current->setData(!hasOlder || !sameGroup(r + 1, r), FirstInGroupRole);
+        current->setData(!hasNewer || !sameGroup(r, r - 1), LastInGroupRole);
     }
 }
 
