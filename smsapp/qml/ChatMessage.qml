@@ -47,10 +47,14 @@ Item {
             return {"&": "&amp;", "<": "&lt;", ">": "&gt;"}[c];
         });
 
-        // Match http(s):// and www. URLs; allow () in paths but exclude trailing punctuation
-        s = s.replace(/(https?:\/\/[^\s<>]*[^\s<>.,;:!?\)\]"']|www\.[^\s<>]*[^\s<>.,;:!?\)\]"'])/gi, function(url) {
-            const href = url.startsWith("www.") ? "https://" + url : url;
-            return '<a href="' + href + '" style="color: ' + linkColor + '">' + url + '</a>';
+        // Match http(s):// and www. URLs, and bare domains like "bit.ly/abc" that SMS often use.
+        // Allow () in paths but exclude trailing punctuation.
+        const urlEnd = "[^\\s<>]*[^\\s<>.,;:!?\\)\\]\"']";
+        const domain = "(?:[a-z0-9-]+\\.)+(?:com|org|net|edu|gov|io|co|ly|me|gl|to|in|us|uk|ca|au|de|fr|app|dev|ai|gg|tv|info|biz|link|page|site|xyz)";
+        const urlRegex = new RegExp("(^|[^\\w@./-])((?:https?:\\/\\/|www\\.)" + urlEnd + "|" + domain + "(?:\\/" + urlEnd + "|\\/)?(?![\\w@-]))", "gi");
+        s = s.replace(urlRegex, function(match, before, url) {
+            const href = /^https?:\/\//i.test(url) ? url : "https://" + url;
+            return before + '<a href="' + href + '" style="color: ' + linkColor + '">' + url + '</a>';
         });
 
         return s.replace(/\n/g, "<br>");
