@@ -72,6 +72,7 @@ target_link_libraries(kdeconnect-sms PRIVATE
     KF6::People
     KF6::ColorScheme
     KF6::Crash
+    KF6::IconThemes
     KF6::WindowSystem
 )
 
