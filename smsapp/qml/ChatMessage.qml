@@ -54,7 +54,9 @@ Item {
         const urlRegex = new RegExp("(^|[^\\w@./-])((?:https?:\\/\\/|www\\.)" + urlEnd + "|" + domain + "(?:\\/" + urlEnd + "|\\/)?(?![\\w@-]))", "gi");
         s = s.replace(urlRegex, function(match, before, url) {
             const href = /^https?:\/\//i.test(url) ? url : "https://" + url;
-            return before + '<a href="' + href + '" style="color: ' + linkColor + '">' + url + '</a>';
+            const size = Kirigami.Units.iconSizes.small;
+            return before + '<a href="' + href + '" style="color: ' + linkColor + '">' + url + '</a>'
+                + '&nbsp;<a href="copy:' + href + '"><img src="image://icon/edit-copy-symbolic" width="' + size + '" height="' + size + '" align="middle"></a>';
         });
 
         return s.replace(/\n/g, "<br>");
@@ -194,7 +196,14 @@ Item {
                         selectionColor: root.sentByMe ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.highlightColor
                         selectedTextColor: root.sentByMe ? Kirigami.Theme.highlightColor : Kirigami.Theme.highlightedTextColor
                         text: root.linkify(root.messageBody, root.sentByMe ? root.bubbleTextColor : Kirigami.Theme.linkColor)
-                        onLinkActivated: (link) => Qt.openUrlExternally(link)
+                        onLinkActivated: (link) => {
+                            if (link.startsWith("copy:")) {
+                                SmsHelper.copyToClipboard(link.substring(5));
+                                applicationWindow().showPassiveNotification(i18nd("kdeconnect-sms", "Link copied"));
+                            } else {
+                                Qt.openUrlExternally(link);
+                            }
+                        }
                     }
                 }
             }

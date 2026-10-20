@@ -19,6 +19,7 @@
 #include <KDBusService>
 #include <KLocalizedQmlContext>
 #include <KLocalizedString>
+#include <KQuickIconProvider>
 #include <KSharedConfig>
 #include <KWindowSystem>
 
@@ -154,6 +155,7 @@ int main(int argc, char *argv[])
     QQmlApplicationEngine engine;
     KLocalization::setupLocalizedContext(&engine);
     engine.addImageProvider(QStringLiteral("thumbnailsProvider"), new ThumbnailsProvider);
+    engine.addImageProvider(QStringLiteral("icon"), new KQuickIconProvider);
     engine.loadFromModule("org.kde.kdeconnect.sms", "Main");
 
     QObject::connect(&service, &KDBusService::activateRequested, &service, [&parser, &data, &engine](const QStringList &args, const QString & /*workDir*/) {
