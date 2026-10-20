@@ -67,7 +67,25 @@ void Notification::show()
 
 void Notification::update(const NetworkPacket &np)
 {
+    const QJsonArray previousConversation = m_conversation;
     parseNetworkPacket(np);
+
+    // Plasma updates a replaced notification in place without showing it again,
+    // so a new message in a conversation needs a new notification to be noticed
+    if (m_notification && !m_silent && isConversation() && !previousConversation.isEmpty() && m_conversation.last() != previousConversation.last()) {
+        m_notification->close();
+        m_notification = nullptr;
+
+        // Only show the messages that arrived since the last notification, which the phone keeps in the conversation
+        m_firstNewMessage = 0;
+        for (qsizetype i = m_conversation.size() - 1; i >= 0; --i) {
+            if (m_conversation.at(i) == previousConversation.last()) {
+                m_firstNewMessage = i + 1;
+                break;
+            }
+        }
+    }
+
     createKNotification(np);
 }
 
@@ -84,7 +102,7 @@ void Notification::createKNotification(const NetworkPacket &np)
 
     QString ticker = m_ticker;
     QString title = m_title;
-    QString text = isConversation() ? getConversationMessages(supportsMarkup) : m_text;
+    QString text = isConversation() ? getConversationMessages(supportsMarkup, m_firstNewMessage) : m_text;
 
     if (supportsMarkup) {
         ticker = ticker.toHtmlEscaped();
@@ -208,14 +226,18 @@ void Notification::applyIcon()
     m_notification->setPixmap(icon);
 }
 
-QString Notification::getConversationMessages(bool supportsMarkup) const
+QString Notification::getConversationMessages(bool supportsMarkup, qsizetype from) const
 {
     QString conversation;
     // To avoid showing the sender of the first message twice (in title and text) at the start of the conversation.
     QString prevSender = m_title;
 
-    for (const QJsonValue &messageElement : m_conversation) {
-        const Message message = Message::fromObject(messageElement.toObject());
+    if (from >= m_conversation.size()) {
+        from = 0;
+    }
+
+    for (qsizetype i = from; i < m_conversation.size(); ++i) {
+        const Message message = Message::fromObject(m_conversation.at(i).toObject());
         if (message.sender != prevSender) {
             if (supportsMarkup) {
                 conversation.append(QStringLiteral("<b>"));
