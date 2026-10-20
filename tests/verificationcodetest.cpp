@@ -31,6 +31,8 @@ void VerificationCodeTest::testFind_data()
         << QStringLiteral("Rs. 1500 debited from a/c XX1234 on 12-10-26. OTP for txn is 905512") << QStringLiteral("905512");
     QTest::newRow("phone number nearby") << QStringLiteral("Call 1-800-555-0199 and enter code 4417") << QStringLiteral("4417");
     QTest::newRow("reference number") << QStringLiteral("Your Example login code is 58213. Ref 20261012") << QStringLiteral("58213");
+    QTest::newRow("keyword before code")
+        << QStringLiteral("KeyBank: DO NOT share this code. Your security code to access online banking is 992259.") << QStringLiteral("992259");
     QTest::newRow("multiline") << QStringLiteral("Example\nYour security code is\n830142") << QStringLiteral("830142");
 
     QTest::newRow("no keyword") << QStringLiteral("Reminder: appt on 10/14 at 3pm. Call 650-555-0142") << QString();
