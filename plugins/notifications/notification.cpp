@@ -293,9 +293,14 @@ void Notification::parseNetworkPacket(const NetworkPacket &np)
     }
 
     // Look for a code in plain text: only the newest message of a conversation, without its markup.
+    // The title of a conversation is the sender, whose number could be mistaken for a code.
     // Google Messages puts U+2063 INVISIBLE SEPARATOR between the digits of codes.
-    QString codeSource = isConversation() ? Message::fromObject(m_conversation.last().toObject()).content : (m_text.isEmpty() ? m_ticker : m_text);
-    codeSource.prepend(m_title + QLatin1Char('\n'));
+    QString codeSource;
+    if (isConversation()) {
+        codeSource = Message::fromObject(m_conversation.last().toObject()).content;
+    } else {
+        codeSource = m_title + QLatin1Char('\n') + (m_text.isEmpty() ? m_ticker : m_text);
+    }
     m_code = VerificationCode::find(codeSource.remove(QChar(0x2063)));
 
     m_hasIcon = !m_payloadHash.isEmpty();
