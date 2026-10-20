@@ -132,6 +132,7 @@ private:
     bool m_ready;
     QStringList m_actions;
     QJsonArray m_conversation;
+    qsizetype m_firstNewMessage = 0;
     const Device *m_device;
 
     struct Message {
@@ -148,7 +149,7 @@ private:
     void loadIcon(const NetworkPacket &np);
     void applyIcon();
 
-    QString getConversationMessages(bool supportsMarkup) const;
+    QString getConversationMessages(bool supportsMarkup, qsizetype from = 0) const;
 
     static QMap<QString, FileTransferJob *> s_downloadsInProgress;
 };
