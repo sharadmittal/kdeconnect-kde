@@ -135,7 +135,7 @@ void ConversationModel::requestMessages(enum RequestMessageRole role)
     constexpr qint64 requestBatchSize = 25;
     constexpr qint64 maxRequestBatchSize = requestBatchSize * 10;
 
-    if (m_threadId == INVALID_THREAD_ID) {
+    if (m_threadId == INVALID_THREAD_ID || !m_conversationsInterface) {
         return;
     }
 
