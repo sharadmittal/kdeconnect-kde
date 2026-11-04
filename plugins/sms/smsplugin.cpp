@@ -49,6 +49,13 @@ void SmsPlugin::receivePacket(const NetworkPacket &np)
     }
 }
 
+void SmsPlugin::connected()
+{
+    // The conversation cache starts empty whenever the plugin is (re)loaded, e.g. after the phone
+    // reconnects. Repopulate it so open clients keep receiving updates without having to restart.
+    requestAllConversations();
+}
+
 void SmsPlugin::sendSms(const QVariantList &addresses, const QString &textMessage, const QVariantList &attachmentUrls, const qint64 subID)
 {
     QVariantList addressMapList;
