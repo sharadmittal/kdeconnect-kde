@@ -89,6 +89,21 @@ Kirigami.ScrollablePage
             }
         }
     }
+    // ListView tracks the current item by row, so when the list re-sorts (e.g. a new message
+    // moves a conversation to the top) the highlight would stay on the old row. Move it back to
+    // the conversation that is open.
+    function followOpenConversation() {
+        if (!restoredConversation || view.currentIndex < 0 || currentSearchText !== ""
+                || view.currentItem?.conversationId === AppData.lastConversationId) {
+            return;
+        }
+        for (let i = 0; i < view.count; ++i) {
+            if (view.model.data(view.model.index(i, 0), ConversationListModel.ConversationIdRole) == AppData.lastConversationId) {
+                view.currentIndex = i;
+                return;
+            }
+        }
+    }
     property string currentSearchText
     property alias conversationListModel: conversationListModel
     property int devicesCount
@@ -205,6 +220,13 @@ Kirigami.ScrollablePage
 
         onCountChanged: page.restoreConversation()
 
+        Connections {
+            target: view.model
+            function onLayoutChanged() { Qt.callLater(page.followOpenConversation) }
+            function onRowsInserted() { Qt.callLater(page.followOpenConversation) }
+            function onRowsRemoved() { Qt.callLater(page.followOpenConversation) }
+        }
+
         Kirigami.PlaceholderMessage {
             anchors.centerIn: parent
             width: parent.width - (Kirigami.Units.largeSpacing * 4)
@@ -245,7 +267,7 @@ Kirigami.ScrollablePage
             highlighted: ListView.isCurrentItem
 
             // Messages that arrive in the open chat have been seen
-            readonly property bool seen: isUnread && ListView.isCurrentItem
+            readonly property bool seen: isUnread && ListView.isCurrentItem && conversationId === AppData.lastConversationId
             onSeenChanged: {
                 if (seen) {
                     conversationListModel.markAsRead(conversationId);
